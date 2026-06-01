@@ -208,7 +208,7 @@ Your email account is: {user_email}
 CRITICAL: You MUST process ALL matching emails, not just one. Never stop after processing a single email.
 
 WORKFLOW:
-1. SEARCH: Use search_gmail_messages to find ALL unread refund/return/complaint emails.
+1. SEARCH: Use search_gmail_messages to find ALL EMAILS using query: "is:unread". Do not use "is:unread (refund OR return OR complaint)".
 2. COUNT: Determine how many emails were found.
 3. BATCH READ: Use get_gmail_messages_content_batch to read ALL found emails at once (if available).
    If batch read isn't available, use get_gmail_message_content for each one sequentially.
@@ -251,8 +251,15 @@ Reply templates:
 SUMMARY: After processing all emails, provide a summary showing:
 - Total emails found
 - How many were REFUND_REQUEST, RETURN_REQUEST, COMPLAINT, and OTHER
+- Verify the count: REFUND + RETURN + COMPLAINT + OTHER must equal Total found
+- If the numbers don't add up, recheck your classifications before presenting the summary
 - Confirmation that all processed emails were marked as read
 - For each email: sender, classification, and action taken
+
+CRITICAL COUNTING RULES:
+- Count unique message_ids, not what search estimated
+- Each category count must list the correct number of emails
+- Double-check that all numbers add up before giving the final summary
 
 IMPORTANT: After processing the first email, check if there are MORE emails to process.
 Do not stop until you've processed AND marked as read ALL emails found in the initial search.
@@ -262,8 +269,7 @@ CALENDAR_SYSTEM_PROMPT = """You are a helpful Google Calendar assistant.
 
 User Account:
 - Your user's email is: {user_email}
-- Use this email for all calendar operations and tool calls.
-- If the user asks to switch accounts, update the email accordingly.
+- ONLY USE this email for all calendar operations and tool calls!
 
 Behavior:
 - Use CLI tools for simple read-only queries such as today's events, event lists, and calendar discovery.
@@ -275,8 +281,25 @@ CRITICAL: When passing IDs between tools, ALWAYS copy them EXACTLY from the prev
 Never rewrite, retype, or modify an event_id or calendar_id. These are opaque strings that must be preserved character-for-character.
 - Event IDs look like: 2urbhv336hlgtm5nuj0vdo33m6_20260523T020000Z
 - Never truncate, shorten, or modify these IDs.
+- If you need to schedule an event, first check for available time slot, then create the event, and use the returned event_id for any future references to that event.
 
-Time:
+CRITICAL PERMISSION RULES:
+- You can ONLY access {user_email}'s calendar
+- Never query freebusy, events, or calendars for any other email address
+- When checking availability, only check {user_email}'s calendar
+- Simply create the event with attendees - they will receive invitations
+
+CRITICAL TIME RULES FOR MCP TOOLS:
+- ALWAYS include the 'timezone' parameter set to "Asia/Taipei" 
+- ALWAYS include timezone offset in the time strings
+- Format MUST be: "YYYY-MM-DDTHH:MM:SS+08:00"
+- Example for noon Taipei: 
+  start_time: "2026-06-05T12:00:00+08:00"
+  end_time: "2026-06-05T13:00:00+08:00"
+  timezone: "Asia/Taipei"
+- BOTH the offset AND the timezone parameter are required, never omit either
+- NEVER use bare times like "2026-06-05T12:00:00" without offset
+- NEVER convert to UTC, NEVER use "Z" suffix for MCP tools
 - Assume all times are in Taipei timezone (UTC+8) unless specified otherwise.
 - Current time is {current_time} (Taipei time).
 """
@@ -741,6 +764,22 @@ async def main() -> None:
     #     check=False,
     # )
     # print("✓ Auth complete")
+    # print("Testing batch read...")
+    # result = subprocess.run(
+    #     [
+    #         "workspace-cli",
+    #         "--url", f"http://localhost:{MCP_SERVER_PORT}/mcp",
+    #         "call", 
+    #         "get_gmail_messages_content_batch", 
+    #         f"user_google_email={args.email}",
+    #         "message_ids", "19e83884d1ecd67a", "19e8387d00896c16"
+    #     ],
+    #     timeout=30,
+    #     check=False,
+    # )
+    # print(f"Return code: {result.returncode}")
+    # print(f"Stdout: {result.stdout}")
+    # print(f"Stderr: {result.stderr}")
     mcp_client = MultiServerMCPClient(MCP_BASE_CONFIG)
     
     if args.agent == "refund":
