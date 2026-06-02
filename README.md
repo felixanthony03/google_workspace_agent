@@ -33,14 +33,6 @@ GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-...
 OAUTHLIB_INSECURE_TRANSPORT=1
 ```
 
-### 4. Authenticate with Google
-
-Run a test command to trigger OAuth flow:
-```bash
-workspace-cli --url http://localhost:8000/mcp call list_calendars user_google_email=your-email@gmail.com
-```
-A browser will open for Google authentication. Grant access to Gmail and Calendar scopes.
-
 ## Usage
 
 ### Refund Agent
@@ -73,9 +65,7 @@ uv run workspace_agent_suite.py calendar --mode interactive --email your-email@g
 
 The suite starts an MCP server (workspace-mcp) locally on port 8000, then connects LangGraph agents to it. Refund agent uses MCP tools for Gmail operations. Calendar agent combines MCP tools for write operations with CLI tools for fast read queries.
 
-## Environment Variables
+## Important Notes
 
-OPENAI_API_KEY             Required. Your OpenAI API key.
-GOOGLE_OAUTH_CLIENT_ID     Required. Google OAuth 2.0 client ID.
-GOOGLE_OAUTH_CLIENT_SECRET Required. Google OAuth 2.0 client secret.
-OAUTHLIB_INSECURE_TRANSPORT Optional. Set to 1 for local development.
+Authorization is required for the first when the script was run follow what the prompt says. 
+If the tool was stuck, please re-run the script and exit to ensure the server was terminated properly before trying again. 

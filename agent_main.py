@@ -751,35 +751,63 @@ async def main() -> None:
     start_mcp_server(MCP_SERVER_PORT)
 
 
-    # print("Authenticating workspace-cli...")
-    # subprocess.run(
-    #     [
-    #         "workspace-cli",
-    #         "--url", f"http://localhost:{MCP_SERVER_PORT}/mcp",
-    #         "call", 
-    #         "list_calendars", 
-    #         f"user_google_email={args.email}"
-    #     ],
-    #     timeout=60,
-    #     check=False,
-    # )
-    # print("✓ Auth complete")
-    # print("Testing batch read...")
-    # result = subprocess.run(
-    #     [
-    #         "workspace-cli",
-    #         "--url", f"http://localhost:{MCP_SERVER_PORT}/mcp",
-    #         "call", 
-    #         "get_gmail_messages_content_batch", 
-    #         f"user_google_email={args.email}",
-    #         "message_ids", "19e83884d1ecd67a", "19e8387d00896c16"
-    #     ],
-    #     timeout=30,
-    #     check=False,
-    # )
-    # print(f"Return code: {result.returncode}")
-    # print(f"Stdout: {result.stdout}")
-    # print(f"Stderr: {result.stderr}")
+    # print("Authenticating...")
+    # try:
+    #     subprocess.run(
+    #         [
+    #             "workspace-cli",
+    #             "--url", f"http://localhost:{MCP_SERVER_PORT}/mcp",
+    #             "call", 
+    #             "list_calendars", 
+    #             f"user_google_email={args.email}"
+    #         ],
+    #         timeout=60,
+    #         check=False,
+    #     )
+    #     print("✓ Auth complete")
+    # except Exception as exc:
+    #     input("Please complete the Google OAuth flow in the browser. Press Enter after you have authenticated and granted permissions...")
+
+    print("Authenticating...")
+
+    result = subprocess.run(
+        [
+            "workspace-cli",
+            "--url", f"http://localhost:{MCP_SERVER_PORT}/mcp",
+            "call", 
+            "list_calendars", 
+            f"user_google_email={args.email}"
+        ],
+        timeout=60,
+        check=False,
+        capture_output=True,  # Capture stdout and stderr
+        text=True
+    )
+    
+    # Check the return code
+    if result.returncode == 0:
+        print("✓ Auth complete")
+    else:
+        # The subprocess failed
+        if "ToolError" in result.stderr:
+            # Extract the authorization URL from the error message
+            import re
+            url_match = re.search(r'Authorization URL: (https://[^\s]+)', result.stderr)
+            
+            print("\n🔐 Google Authentication Required")
+            print("=" * 50)
+            
+            if url_match:
+                auth_url = url_match.group(1)
+                print(f"\nPlease open this URL in your browser to authorize:\n{auth_url}\n")
+            else:
+                print("\nPlease authorize the application in your browser.\n")
+            
+            print("After granting permissions, press Enter to continue...")
+            input()
+        else:
+            print(f"Command failed: {result.stderr}")
+            
     mcp_client = MultiServerMCPClient(MCP_BASE_CONFIG)
     
     if args.agent == "refund":
